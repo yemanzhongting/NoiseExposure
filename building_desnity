@@ -1,0 +1,70 @@
+area=r'D:\武汉建筑面\Wuhan_Buildings_DWG-Polygon.shp'
+point=r'D:\武汉建筑面\Export_Output.shp'
+import geopandas as gpd
+from shapely.geometry import Point
+buildings = gpd.read_file(area)
+buildings['area_field_of_building'] = buildings['geometry'].area
+
+points = gpd.read_file(point)
+buffer_radius = 100  # 单位为米
+
+# 计算面积并添加到新字段
+# gdf['area'] = gdf['geometry'].area
+
+# 将点数据集转换为与建筑面数据相同的坐标参考系统
+points = points.to_crs(buildings.crs)
+
+points['geometry'] = points.geometry.buffer(buffer_radius)
+# 使用geopandas的sjoin函数进行空间查询
+points_with_buildings = gpd.sjoin(points, buildings, how="left", op="intersects")
+
+print(buildings.head(1))
+print(points.head(1))
+
+# 计算每个点周围的建筑面积总和
+grouped = points_with_buildings.groupby('noise__id')
+total_building_area = grouped['area_field_of_building'].sum()  # 替换 'area_field_of_building' 为实际建筑面积字段名
+# 计算密度，假设点周围区域总面积为固定值
+total_area = buffer_radius * buffer_radius * 3.14159  # 圆形缓冲区的面积
+density = total_building_area / total_area
+# 将结果添加到点数据中
+points['density'] = density
+
+###########格式化代码
+import geopandas as gpd
+from shapely.geometry import Point
+
+area=r'D:\武汉建筑面\Wuhan_Buildings_DWG-Polygon.shp'
+point=r'D:\武汉建筑面\Export_Output.shp'
+
+# 假设已加载建筑物和点数据集
+buildings = gpd.read_file(area)
+buildings['area_field_of_building'] = buildings['geometry'].area
+points = gpd.read_file(point)
+buffer_radius = 500  # 单位为米
+
+# 将点数据集转换为与建筑面数据相同的坐标参考系统
+points = points.to_crs(buildings.crs)
+
+# 创建缓冲区
+points['geometry'] = points.geometry.buffer(buffer_radius)
+
+# 使用geopandas的sjoin函数进行空间查询
+points_with_buildings = gpd.sjoin(points, buildings, how="left", op="intersects")
+
+# 按噪声ID分组并计算总建筑面积
+grouped = points_with_buildings.groupby('noise__id')
+total_building_area = grouped['area_field_of_building'].sum()  # 注意这里是对'area_field_of_building'列求和
+
+# 计算密度，需要确保total_building_area是Series，其索引与points对齐
+total_area = buffer_radius * buffer_radius * 3.14159  # 圆形缓冲区的面积
+density = total_building_area / total_area
+
+# 将结果添加到点数据中，需要根据索引匹配
+points['density'] = points.index.map(density)
+
+print(points.head())
+
+# 将结果添加到点数据中，使用fillna方法填充缺失值
+points['density'] = points['noise__id'].map(density).fillna(0)
+points.head(2)
